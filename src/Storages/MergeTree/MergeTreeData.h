@@ -59,7 +59,7 @@ using BackupEntries = std::vector<std::pair<String, std::shared_ptr<const IBacku
 class MergeTreeTransaction;
 using MergeTreeTransactionPtr = std::shared_ptr<MergeTreeTransaction>;
 
-/// Auxiliary struct holding information about the future merged or mutated part.
+/// Auxiliary（备用的，辅助的） struct holding information about the future merged or mutated（转变，转换） part.
 struct EmergingPartInfo
 {
     String disk_name;

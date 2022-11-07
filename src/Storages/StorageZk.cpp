@@ -1,4 +1,4 @@
-#include <Storages/StorageLog.h>
+#include <Storages/StorageZk.h>
 #include <Storages/StorageFactory.h>
 
 #include <Common/Exception.h>
@@ -19,7 +19,7 @@
 #include <DataTypes/NestedUtils.h>
 
 #include <Interpreters/Context.h>
-#include "StorageLogSettings.h"
+#include "StorageZkSettings.h"
 #include <Processors/Sources/NullSource.h>
 #include <Processors/ISource.h>
 #include <QueryPipeline/Pipe.h>
@@ -72,7 +72,7 @@ public:
     LogSource( //constructor
         size_t block_size_, //一种int
         const NamesAndTypesList & columns_,
-        const StorageLog & storage_,
+        const StorageZk & storage_,
         size_t rows_limit_,
         const std::vector<size_t> & offsets_,
         const std::vector<size_t> & file_sizes_,
@@ -98,7 +98,7 @@ protected:
 private:
     const size_t block_size;
     const NamesAndTypesList columns;
-    const StorageLog & storage;
+    const StorageZk & storage;
     const size_t rows_limit;      /// The maximum number of rows that can be read
     size_t rows_read = 0;
     bool is_finished = false;
@@ -213,7 +213,7 @@ void LogSource::readData(const NameAndTypePair & name_and_type, ColumnPtr & colu
 
             const auto & data_file_it = storage.data_files_by_names.find(data_file_name);
             if (data_file_it == storage.data_files_by_names.end())
-                throw Exception("Logical error: no information about file " + data_file_name + " in StorageLog", ErrorCodes::LOGICAL_ERROR);
+                throw Exception("Logical error: no information about file " + data_file_name + " in StorageZk", ErrorCodes::LOGICAL_ERROR);
             const auto & data_file = *data_file_it->second;
 
             size_t offset = stream_for_prefix ? 0 : offsets[data_file.index];
@@ -267,7 +267,7 @@ public:
     using WriteLock = std::unique_lock<std::shared_timed_mutex>;
 
     explicit LogSink(
-        StorageLog & storage_, const StorageMetadataPtr & metadata_snapshot_, WriteLock && lock_)
+        StorageZk & storage_, const StorageMetadataPtr & metadata_snapshot_, WriteLock && lock_)
         : SinkToStorage(metadata_snapshot_->getSampleBlock())
         , storage(storage_)
         , metadata_snapshot(metadata_snapshot_)
@@ -313,7 +313,7 @@ public:
     void onFinish() override;
 
 private:
-    StorageLog & storage;
+    StorageZk & storage;
     StorageMetadataPtr metadata_snapshot;
     WriteLock lock;
     bool done = false;
@@ -443,7 +443,7 @@ void LogSink::writeData(const NameAndTypePair & name_and_type, const IColumn & c
         {
             const auto & data_file_it = storage.data_files_by_names.find(data_file_name);
             if (data_file_it == storage.data_files_by_names.end())
-                throw Exception("Logical error: no information about file " + data_file_name + " in StorageLog", ErrorCodes::LOGICAL_ERROR);
+                throw Exception("Logical error: no information about file " + data_file_name + " in StorageZk", ErrorCodes::LOGICAL_ERROR);
 
             const auto & data_file = *data_file_it->second;
             const auto & columns = metadata_snapshot->getColumns();
@@ -497,14 +497,14 @@ void LogSink::writeData(const NameAndTypePair & name_and_type, const IColumn & c
 }
 
 
-void StorageLog::Mark::write(WriteBuffer & out) const
+void StorageZk::Mark::write(WriteBuffer & out) const
 {
     writeIntBinary(rows, out);
     writeIntBinary(offset, out);
 }
 
 
-void StorageLog::Mark::read(ReadBuffer & in)
+void StorageZk::Mark::read(ReadBuffer & in)
 {
     readIntBinary(rows, in);
     readIntBinary(offset, in);
@@ -524,9 +524,9 @@ namespace
 }
 
 
-StorageLog::~StorageLog() = default;
+StorageZk::~StorageZk() = default;
 
-StorageLog::StorageLog(
+StorageZk::StorageZk(
     const String & engine_name_,
     DiskPtr disk_,
     const String & relative_path_,
@@ -589,10 +589,10 @@ StorageLog::StorageLog(
 }
 
 
-void StorageLog::addDataFiles(const NameAndTypePair & column)
+void StorageZk::addDataFiles(const NameAndTypePair & column)
 {
     if (data_files_by_names.contains(column.name))
-        throw Exception("Duplicate column with name " + column.name + " in constructor of StorageLog.",
+        throw Exception("Duplicate column with name " + column.name + " in constructor of StorageZk.",
             ErrorCodes::DUPLICATE_COLUMN);
 
     ISerialization::StreamCallback stream_callback = [&] (const ISerialization::SubstreamPath & substream_path)
@@ -615,7 +615,7 @@ void StorageLog::addDataFiles(const NameAndTypePair & column)
 }
 
 
-void StorageLog::loadMarks(std::chrono::seconds lock_timeout)
+void StorageZk::loadMarks(std::chrono::seconds lock_timeout)
 {
     if (!use_marks_file || marks_loaded)
         return;
@@ -629,7 +629,7 @@ void StorageLog::loadMarks(std::chrono::seconds lock_timeout)
     loadMarks(lock);
 }
 
-void StorageLog::loadMarks(const WriteLock & lock /* already locked exclusively */)
+void StorageZk::loadMarks(const WriteLock & lock /* already locked exclusively */)
 {
     if (!use_marks_file || marks_loaded)
         return;
@@ -665,7 +665,7 @@ void StorageLog::loadMarks(const WriteLock & lock /* already locked exclusively 
     updateTotalRows(lock);
 }
 
-void StorageLog::saveMarks(const WriteLock & /* already locked for writing */)
+void StorageZk::saveMarks(const WriteLock & /* already locked for writing */)
 {
     if (!use_marks_file)
         return;
@@ -699,7 +699,7 @@ void StorageLog::saveMarks(const WriteLock & /* already locked for writing */)
 }
 
 
-void StorageLog::removeUnsavedMarks(const WriteLock & /* already locked for writing */)
+void StorageZk::removeUnsavedMarks(const WriteLock & /* already locked for writing */)
 {
     if (!use_marks_file)
         return;
@@ -712,7 +712,7 @@ void StorageLog::removeUnsavedMarks(const WriteLock & /* already locked for writ
 }
 
 
-void StorageLog::saveFileSizes(const WriteLock & /* already locked for writing */)
+void StorageZk::saveFileSizes(const WriteLock & /* already locked for writing */)
 {
     for (const auto & data_file : data_files)
         file_checker.update(data_file.path);
@@ -725,7 +725,7 @@ void StorageLog::saveFileSizes(const WriteLock & /* already locked for writing *
 }
 
 
-void StorageLog::rename(const String & new_path_to_table_data, const StorageID & new_table_id)
+void StorageZk::rename(const String & new_path_to_table_data, const StorageID & new_table_id)
 {
     assert(table_path != new_path_to_table_data);
     {
@@ -752,7 +752,7 @@ static std::chrono::seconds getLockTimeout(ContextPtr context)
     return std::chrono::seconds{lock_timeout};
 }
 
-void StorageLog::truncate(const ASTPtr &, const StorageMetadataPtr &, ContextPtr local_context, TableExclusiveLockHolder &)
+void StorageZk::truncate(const ASTPtr &, const StorageMetadataPtr &, ContextPtr local_context, TableExclusiveLockHolder &)
 {
     WriteLock lock{rwlock, getLockTimeout(local_context)};
     if (!lock)
@@ -774,8 +774,8 @@ void StorageLog::truncate(const ASTPtr &, const StorageMetadataPtr &, ContextPtr
     getContext()->dropMMappedFileCache();
 }
 
-//soki, maybe here
-Pipe StorageLog::read(
+// soki, 监控
+Pipe StorageZk::read(
     const Names & column_names,
     const StorageSnapshotPtr & storage_snapshot,
     SelectQueryInfo & /*query_info*/,
@@ -851,7 +851,8 @@ Pipe StorageLog::read(
     return Pipe::unitePipes(std::move(pipes));
 }
 
-SinkToStoragePtr StorageLog::write(const ASTPtr & /*query*/, const StorageMetadataPtr & metadata_snapshot, ContextPtr local_context)
+//soki
+SinkToStoragePtr StorageZk::write(const ASTPtr & /*query*/, const StorageMetadataPtr & metadata_snapshot, ContextPtr local_context)
 {
     WriteLock lock{rwlock, getLockTimeout(local_context)};
     if (!lock)
@@ -860,7 +861,7 @@ SinkToStoragePtr StorageLog::write(const ASTPtr & /*query*/, const StorageMetada
     return std::make_shared<LogSink>(*this, metadata_snapshot, std::move(lock));
 }
 
-CheckResults StorageLog::checkData(const ASTPtr & /* query */, ContextPtr local_context)
+CheckResults StorageZk::checkData(const ASTPtr & /* query */, ContextPtr local_context)
 {
     ReadLock lock{rwlock, getLockTimeout(local_context)};
     if (!lock)
@@ -870,7 +871,7 @@ CheckResults StorageLog::checkData(const ASTPtr & /* query */, ContextPtr local_
 }
 
 
-IStorage::ColumnSizeByName StorageLog::getColumnSizes() const
+IStorage::ColumnSizeByName StorageZk::getColumnSizes() const
 {
     ReadLock lock{rwlock, std::chrono::seconds(DBMS_DEFAULT_LOCK_ACQUIRE_TIMEOUT_SEC)};
     if (!lock)
@@ -898,7 +899,7 @@ IStorage::ColumnSizeByName StorageLog::getColumnSizes() const
     return column_sizes;
 }
 
-void StorageLog::updateTotalRows(const WriteLock &)
+void StorageZk::updateTotalRows(const WriteLock &)
 {
     if (!use_marks_file || !marks_loaded)
         return;
@@ -909,7 +910,7 @@ void StorageLog::updateTotalRows(const WriteLock &)
         total_rows = 0;
 }
 
-std::optional<UInt64> StorageLog::totalRows(const Settings &) const
+std::optional<UInt64> StorageZk::totalRows(const Settings &) const
 {
     if (use_marks_file && marks_loaded)
         return total_rows;
@@ -920,12 +921,12 @@ std::optional<UInt64> StorageLog::totalRows(const Settings &) const
     return {};
 }
 
-std::optional<UInt64> StorageLog::totalBytes(const Settings &) const
+std::optional<UInt64> StorageZk::totalBytes(const Settings &) const
 {
     return total_bytes;
 }
 
-void StorageLog::backupData(BackupEntriesCollector & backup_entries_collector, const String & data_path_in_backup, const std::optional<ASTs> & /* partitions */)
+void StorageZk::backupData(BackupEntriesCollector & backup_entries_collector, const String & data_path_in_backup, const std::optional<ASTs> & /* partitions */)
 {
     auto lock_timeout = getLockTimeout(backup_entries_collector.getContext());
     loadMarks(lock_timeout);
@@ -987,7 +988,7 @@ void StorageLog::backupData(BackupEntriesCollector & backup_entries_collector, c
     }
 }
 
-void StorageLog::restoreDataFromBackup(RestorerFromBackup & restorer, const String & data_path_in_backup, const std::optional<ASTs> & /* partitions */)
+void StorageZk::restoreDataFromBackup(RestorerFromBackup & restorer, const String & data_path_in_backup, const std::optional<ASTs> & /* partitions */)
 {
     auto backup = restorer.getBackup();
     if (!backup->hasFiles(data_path_in_backup))
@@ -1001,11 +1002,11 @@ void StorageLog::restoreDataFromBackup(RestorerFromBackup & restorer, const Stri
 
     auto lock_timeout = getLockTimeout(restorer.getContext());
     restorer.addDataRestoreTask(
-        [storage = std::static_pointer_cast<StorageLog>(shared_from_this()), backup, data_path_in_backup, lock_timeout]
+        [storage = std::static_pointer_cast<StorageZk>(shared_from_this()), backup, data_path_in_backup, lock_timeout]
         { storage->restoreDataImpl(backup, data_path_in_backup, lock_timeout); });
 }
 
-void StorageLog::restoreDataImpl(const BackupPtr & backup, const String & data_path_in_backup, std::chrono::seconds lock_timeout)
+void StorageZk::restoreDataImpl(const BackupPtr & backup, const String & data_path_in_backup, std::chrono::seconds lock_timeout)
 {
     WriteLock lock{rwlock, lock_timeout};
     if (!lock)
@@ -1092,7 +1093,7 @@ void StorageLog::restoreDataImpl(const BackupPtr & backup, const String & data_p
     }
 }
 
-void registerStorageLog(StorageFactory & factory)
+void registerStorageZk(StorageFactory & factory)
 {
     StorageFactory::StorageFeatures features{
         .supports_settings = true
@@ -1108,7 +1109,7 @@ void registerStorageLog(StorageFactory & factory)
         String disk_name = getDiskName(*args.storage_def);
         DiskPtr disk = args.getContext()->getDisk(disk_name);
 
-        return std::make_shared<StorageLog>(
+        return std::make_shared<StorageZk>(
             args.engine_name,
             disk,
             args.relative_data_path,

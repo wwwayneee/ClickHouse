@@ -138,7 +138,7 @@ void StorageMergeTree::startup()
         background_operations_assignee.start();
         startBackgroundMovesIfNeeded();
     }
-    catch (...)
+    catch (...) //匹配所有类型异常
     {
         /// Exception safety: failed "startup" does not require a call to "shutdown" from the caller.
         /// And it should be able to safely destroy table after exception in "startup" method.

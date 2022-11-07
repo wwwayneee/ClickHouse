@@ -112,8 +112,8 @@ inline void readPODBinary(T & x, ReadBuffer & buf)
     buf.readStrict(reinterpret_cast<char *>(&x), sizeof(x)); /// NOLINT
 }
 
-template <typename T>
-inline void readIntBinary(T & x, ReadBuffer & buf)
+template <typename T> 
+inline void readIntBinary(T & x, ReadBuffer & buf) // inline：内联函数，用于提升性能：为防止一些频繁调用的小函数大量消耗栈空间（栈内存）
 {
     readPODBinary(x, buf);
 }

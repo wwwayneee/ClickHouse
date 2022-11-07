@@ -24,7 +24,7 @@ namespace DB
 
 /** See the description of the data structure in MergeTreeData.
   */
-class StorageMergeTree final : public MergeTreeData
+class StorageMergeTree final : public MergeTreeData //final：该类不能被继承
 {
 public:
     /** Attach the table with the appropriate name, along the appropriate path (with / at the end),
