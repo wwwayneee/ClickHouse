@@ -48,22 +48,7 @@ DB::StoragePtr createStorage(DB::DiskPtr & disk)
     return table;
 }
 
-//soki, cpoied from above
-DB::StoragePtr createStorage(DB::DiskPtr & disk)
-{
-    using namespace DB;
 
-    NamesAndTypesList names_and_types;
-    names_and_types.emplace_back("a", std::make_shared<DataTypeUInt64>());
-
-    StoragePtr table = std::make_shared<StorageZk>(
-        "Log", disk, "table/", StorageID("test", "test"), ColumnsDescription{names_and_types},
-        ConstraintsDescription{}, String{}, false, getContext().context);
-
-    table->startup();
-
-    return table;
-}
 
 template <typename T>
 class StorageLogTest : public testing::Test
@@ -90,35 +75,11 @@ private:
     DB::StoragePtr table;
 };
 
-//soki, copied from above
-template <typename T>
-class StorageZkTest : public testing::Test
-{
-public:
 
-    void SetUp() override
-    {
-        disk = createDisk<T>();
-        table = createStorage(disk);
-    }
-
-    void TearDown() override
-    {
-        table->flushAndShutdown();
-        destroyDisk<T>(disk);
-    }
-
-    const DB::DiskPtr & getDisk() { return disk; }
-    DB::StoragePtr & getTable() { return table; }
-
-private:
-    DB::DiskPtr disk;
-    DB::StoragePtr table;
-};
 
 using DiskImplementations = testing::Types<DB::DiskMemory, DB::DiskLocal>;
 TYPED_TEST_SUITE(StorageLogTest, DiskImplementations);
-TYPED_TEST_SUITE(StorageZkTest, DiskImplementations); //soki, copied from above
+
 
 // Returns data written to table in Values format.
 std::string writeData(int rows, DB::StoragePtr & table, const DB::ContextPtr context)
@@ -222,20 +183,3 @@ TYPED_TEST(StorageLogTest, testReadWrite)
     ASSERT_EQ(data, readData(this->getTable(), context_holder.context));
 }
 
-//soki, copied from above
-TYPED_TEST(StorageZkTest, testReadWrite)
-{
-    using namespace DB;
-    const auto & context_holder = getContext();
-
-    std::string data;
-
-    // Write several chunks of data.
-    data += writeData(10, this->getTable(), context_holder.context);
-    data += ",";
-    data += writeData(20, this->getTable(), context_holder.context);
-    data += ",";
-    data += writeData(10, this->getTable(), context_holder.context);
-
-    ASSERT_EQ(data, readData(this->getTable(), context_holder.context));
-}
