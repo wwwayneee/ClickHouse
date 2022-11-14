@@ -9,6 +9,7 @@ namespace DB
 {
 
 void registerStorageLog(StorageFactory & factory);
+void registerStorageZk(StorageFactory & factory); //soki
 void registerStorageStripeLog(StorageFactory & factory);
 void registerStorageMergeTree(StorageFactory & factory);
 void registerStorageNull(StorageFactory & factory);
@@ -94,6 +95,7 @@ void registerStorages()
     auto & factory = StorageFactory::instance();
 
     registerStorageLog(factory);
+    registerStorageZk(factory); //soki
     registerStorageStripeLog(factory);
     registerStorageMergeTree(factory);
     registerStorageNull(factory);
