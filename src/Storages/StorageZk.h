@@ -22,7 +22,7 @@ using BackupPtr = std::shared_ptr<const IBackup>;
   * Also implements TinyLog - a table engine that is suitable for small chunks of the log.
   * It differs from Log in the absence of mark files.
   */
-class StorageLog final : public IStorage, public WithMutableContext
+class StorageZk final : public IStorage, public WithMutableContext
 {
     friend class LogSource;
     friend class LogSink;
@@ -32,7 +32,7 @@ public:
       *  (the correctness of names and paths is not verified)
       *  consisting of the specified columns; Create files if they do not exist.
       */
-    StorageLog(
+    StorageZk(
         const String & engine_name_,
         DiskPtr disk_,
         const std::string & relative_path_,
@@ -43,7 +43,7 @@ public:
         bool attach,
         ContextMutablePtr context_);
 
-    ~StorageLog() override;
+    ~StorageZk() override;
     String getName() const override { return engine_name; }
 
     Pipe read(

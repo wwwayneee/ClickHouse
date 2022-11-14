@@ -54,7 +54,7 @@ namespace ErrorCodes
     extern const int CANNOT_RESTORE_TABLE;
 }
 
-/// NOTE: The lock `StorageLog::rwlock` is NOT kept locked while reading,
+/// NOTE: The lock `StorageZk::rwlock` is NOT kept locked while reading,
 /// because we read ranges of data that do not change.
 class LogSource final : public ISource //final：该类不能被继承
 {
@@ -260,7 +260,7 @@ bool LogSource::isFinished()
 }
 
 
-/// NOTE: The lock `StorageLog::rwlock` is kept locked in exclusive mode while writing.
+/// NOTE: The lock `StorageZk::rwlock` is kept locked in exclusive mode while writing.
 class LogSink final : public SinkToStorage
 {
 public:
