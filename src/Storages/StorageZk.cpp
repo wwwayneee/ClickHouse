@@ -429,7 +429,7 @@ ISerialization::OutputStreamGetter ZkSink::createStreamGetter(const NameAndTypeP
 }
 
 //soki, maybe here
-void LogSink::writeData(const NameAndTypePair & name_and_type, const IColumn & column)
+void ZkSink::writeData(const NameAndTypePair & name_and_type, const IColumn & column)
 {
     ISerialization::SerializeBinaryBulkSettings settings;
     const auto & [name, type] = name_and_type;
@@ -858,7 +858,7 @@ SinkToStoragePtr StorageZk::write(const ASTPtr & /*query*/, const StorageMetadat
     if (!lock)
         throw Exception("Lock timeout exceeded", ErrorCodes::TIMEOUT_EXCEEDED);
 
-    return std::make_shared<LogSink>(*this, metadata_snapshot, std::move(lock));
+    return std::make_shared<ZkSink>(*this, metadata_snapshot, std::move(lock));
 }
 
 CheckResults StorageZk::checkData(const ASTPtr & /* query */, ContextPtr local_context)
