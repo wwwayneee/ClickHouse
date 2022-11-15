@@ -37,7 +37,7 @@
 
 
 #define DBMS_STORAGE_LOG_DATA_FILE_EXTENSION ".bin"
-#define DBMS_STORAGE_LOG_MARKS_FILE_NAME "__marks.mrk"
+#define DBMS_STORAGE_LOG_MARKS_FILE_NAME "__marks.mrk" //soki: 暂时不修改成 Zk
 
 
 namespace DB
@@ -56,7 +56,7 @@ namespace ErrorCodes
 
 /// NOTE: The lock `StorageZk::rwlock` is NOT kept locked while reading,
 /// because we read ranges of data that do not change.
-class LogSource final : public ISource //final：该类不能被继承
+class ZkSource final : public ISource //final：该类不能被继承
 {
 public:
     static Block getHeader(const NamesAndTypesList & columns)
@@ -69,7 +69,7 @@ public:
         return res;
     }
 
-    LogSource( //constructor
+    ZkSource( //constructor
         size_t block_size_, //一种int
         const NamesAndTypesList & columns_,
         const StorageZk & storage_,
@@ -90,7 +90,7 @@ public:
     {
     }
 
-    String getName() const override { return "Log"; }
+    String getName() const override { return "Zk"; }
 
 protected:
     Chunk generate() override;
@@ -142,7 +142,7 @@ private:
 };
 
 
-Chunk LogSource::generate()
+Chunk ZkSource::generate()
 {
     if (isFinished())
     {
@@ -195,7 +195,7 @@ Chunk LogSource::generate()
 }
 
 
-void LogSource::readData(const NameAndTypePair & name_and_type, ColumnPtr & column,
+void ZkSource::readData(const NameAndTypePair & name_and_type, ColumnPtr & column,
     size_t max_rows_to_read, ISerialization::SubstreamsCache & cache)
 {
     ISerialization::DeserializeBinaryBulkSettings settings; /// TODO Use avg_value_size_hint.
@@ -234,7 +234,7 @@ void LogSource::readData(const NameAndTypePair & name_and_type, ColumnPtr & colu
     serialization->deserializeBinaryBulkWithMultipleStreams(column, max_rows_to_read, settings, deserialize_states[name], &cache);
 }
 
-bool LogSource::isFinished()
+bool ZkSource::isFinished()
 {
     if (is_finished)
         return true;
@@ -261,12 +261,12 @@ bool LogSource::isFinished()
 
 
 /// NOTE: The lock `StorageZk::rwlock` is kept locked in exclusive mode while writing.
-class LogSink final : public SinkToStorage
+class ZkSink final : public SinkToStorage
 {
 public:
     using WriteLock = std::unique_lock<std::shared_timed_mutex>;
 
-    explicit LogSink(
+    explicit ZkSink(
         StorageZk & storage_, const StorageMetadataPtr & metadata_snapshot_, WriteLock && lock_)
         : SinkToStorage(metadata_snapshot_->getSampleBlock())
         , storage(storage_)
@@ -283,9 +283,9 @@ public:
         storage.saveFileSizes(lock);
     }
 
-    String getName() const override { return "LogSink"; }
+    String getName() const override { return "ZkSink"; }
 
-    ~LogSink() override
+    ~ZkSink() override
     {
         try
         {
@@ -356,7 +356,7 @@ private:
 };
 
 
-void LogSink::consume(Chunk chunk)
+void ZkSink::consume(Chunk chunk)
 {
     auto block = getHeader().cloneWithColumns(chunk.detachColumns());
     metadata_snapshot->check(block, true);
@@ -372,7 +372,7 @@ void LogSink::consume(Chunk chunk)
 }
 
 
-void LogSink::onFinish()
+void ZkSink::onFinish()
 {
     if (done)
         return;
@@ -410,14 +410,14 @@ void LogSink::onFinish()
 }
 
 
-ISerialization::OutputStreamGetter LogSink::createStreamGetter(const NameAndTypePair & name_and_type)
+ISerialization::OutputStreamGetter ZkSink::createStreamGetter(const NameAndTypePair & name_and_type)
 {
     return [&] (const ISerialization::SubstreamPath & path) -> WriteBuffer *
     {
         String data_file_name = ISerialization::getFileNameForStream(name_and_type, path);
         auto it = streams.find(data_file_name);
         if (it == streams.end())
-            throw Exception("Logical error: stream was not created when writing data in LogSink",
+            throw Exception("Logical error: stream was not created when writing data in ZkSink",
                             ErrorCodes::LOGICAL_ERROR);
 
         Stream & stream = it->second;
@@ -541,7 +541,7 @@ StorageZk::StorageZk(
     , engine_name(engine_name_)
     , disk(std::move(disk_))
     , table_path(relative_path_)
-    , use_marks_file(engine_name == "Log")
+    , use_marks_file(engine_name == "Zk")
     , marks_file_path(table_path + DBMS_STORAGE_LOG_MARKS_FILE_NAME)
     , file_checker(disk, table_path + "sizes.json")
     , max_compress_block_size(context_->getSettingsRef().max_compress_block_size)
@@ -836,7 +836,7 @@ Pipe StorageZk::read(
                 offsets[data_file.index] = data_file.marks[mark_begin].offset;
         }
 
-        pipes.emplace_back(std::make_shared<LogSource>(
+        pipes.emplace_back(std::make_shared<ZkSource>(
             max_block_size,
             all_columns,
             *this,
@@ -1121,8 +1121,8 @@ void registerStorageZk(StorageFactory & factory)
             args.getContext());
     };
 
-    factory.registerStorage("Log", create_fn, features);
-    factory.registerStorage("TinyLog", create_fn, features);
+    factory.registerStorage("Zk", create_fn, features);
+    factory.registerStorage("TinyZk", create_fn, features);
 }
 
 }
