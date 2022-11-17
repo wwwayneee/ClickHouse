@@ -24,8 +24,8 @@ using BackupPtr = std::shared_ptr<const IBackup>;
   */
 class StorageZk final : public IStorage, public WithMutableContext
 {
-    friend class LogSource;
-    friend class LogSink;
+    friend class ZkSource;
+    friend class ZkSink;
 
 public:
     /** Attach the table with the appropriate name, along the appropriate path (with / at the end),
