@@ -1,3 +1,4 @@
+//export CC=clang CXX=clang++
 #include <Storages/StorageZk.h>
 #include <Storages/StorageFactory.h>
 
@@ -78,6 +79,7 @@ public:
         const std::vector<size_t> & file_sizes_,
         bool limited_by_file_sizes_,
         ReadSettings read_settings_)
+
         : ISource(getHeader(columns_))
         , block_size(block_size_)
         , columns(columns_)
@@ -87,8 +89,7 @@ public:
         , file_sizes(file_sizes_)
         , limited_by_file_sizes(limited_by_file_sizes_)
         , read_settings(std::move(read_settings_))
-    {
-    }
+    {} //constructor ZkSource() 结束
 
     String getName() const override { return "Zk"; }
 
@@ -98,8 +99,8 @@ protected:
 private:
     const size_t block_size;
     const NamesAndTypesList columns;
-    //const StorageZk & storage; //original
-    const StorageZk & storage_zk; //soki, altered
+    //const StorageZk & storage; //original 引用reference 必须要有initializer
+    const StorageZk & storage; //
     const size_t rows_limit;      /// The maximum number of rows that can be read
     size_t rows_read = 0;
     bool is_finished = false;
@@ -140,10 +141,15 @@ private:
 
     void readData(const NameAndTypePair & name_and_type, ColumnPtr & column, size_t max_rows_to_read, ISerialization::SubstreamsCache & cache);
     bool isFinished();
-};
+
+}; //class ZkSource final : public ISource
 
 
-Chunk ZkSource::generate()
+
+
+// Chunk: class, ZkSource class
+// generate()函数是ZkSource类中的，它返回一个Chunk类
+Chunk ZkSource::generate() 
 {
     if (isFinished())
     {
@@ -169,7 +175,8 @@ Chunk ZkSource::generate()
         }
         catch (Exception & e)
         {
-            e.addMessage("while reading column " + name_type.name + " at " + fullPath(storage_zk.disk, storage_zk.table_path));
+            //disk: DB::StorageZk 的private member
+            e.addMessage("while reading column " + name_type.name + " at " + fullPath(storage.disk, storage.table_path)); //here, bug
             throw;
         }
 
@@ -212,15 +219,15 @@ void ZkSource::readData(const NameAndTypePair & name_and_type, ColumnPtr & colum
 
             String data_file_name = ISerialization::getFileNameForStream(name_and_type, path);
 
-            const auto & data_file_it = storage_zk.data_files_by_names.find(data_file_name);
-            if (data_file_it == storage_zk.data_files_by_names.end())
+            const auto & data_file_it = storage.data_files_by_names.find(data_file_name);
+            if (data_file_it == storage.data_files_by_names.end())
                 throw Exception("Logical error: no information about file " + data_file_name + " in StorageZk", ErrorCodes::LOGICAL_ERROR);
             const auto & data_file = *data_file_it->second;
 
             size_t offset = stream_for_prefix ? 0 : offsets[data_file.index];
             size_t file_size = file_sizes[data_file.index];
 
-            auto it = streams.try_emplace(data_file_name, storage_zk.disk, data_file.path, offset, file_size, limited_by_file_sizes, read_settings).first;
+            auto it = streams.try_emplace(data_file_name, storage.disk, data_file.path, offset, file_size, limited_by_file_sizes, read_settings).first;
             return &it->second.compressed.value();
         };
     };

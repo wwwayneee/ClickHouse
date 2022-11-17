@@ -95,7 +95,7 @@ void registerStorages()
     auto & factory = StorageFactory::instance();
 
     registerStorageLog(factory);
-    registerStorageZk(factory); //soki
+    //registerStorageZk(factory); //soki
     registerStorageStripeLog(factory);
     registerStorageMergeTree(factory);
     registerStorageNull(factory);
